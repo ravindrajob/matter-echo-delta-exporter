@@ -1,0 +1,40 @@
+# Prometheus Alerting Rules for matter-echo-delta-exporter
+# Validate with: promtool check rules monitoring/prometheus-alerts.yml
+groups:
+  - name: matter_echo_delta_l4
+    rules:
+      - alert: MatterUnansweredMrpBurst
+        expr: increase(matter_echo_delta_unanswered_bursts_total{proto="mrp_5540"}[5m]) > 0
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: "Unanswered Matter UDP/5540 burst from {{ $labels.controller }}"
+          description: "Controller {{ $labels.controller }} sent Matter MRP retries with zero ACK from the bridge within ack_timeout_ms."
+
+      - alert: MatterBridgeSilentDisconnect
+        expr: matter_silent_disconnect == 1
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Silent disconnect on Matter bridge"
+          description: "Bridge HTTP health endpoint is UP, mDNS queries arrive, but zero Matter CASE replies were sent."
+
+      - alert: MatterBridgeHttpDown
+        expr: matter_bridge_http_up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Matter bridge HTTP endpoint unreachable"
+          description: "Local Matter bridge health check failed for more than 1 minute."
+
+      - alert: MatterHighMrpRetries
+        expr: increase(matter_mrp_retries_total{proto="mrp_5540"}[10m]) >= 5
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Elevated Matter MRP retries on {{ $labels.controller }}"
+          description: "High UDP/5540 retransmission rate suggests Wi-Fi packet loss or bridge CPU throttling."

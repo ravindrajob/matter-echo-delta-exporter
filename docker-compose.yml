@@ -1,0 +1,41 @@
+services:
+  # Live Linux kernel BPF capture (read-only rootfs, NET_RAW dropped after SO_ATTACH_FILTER)
+  matter-echo-delta-exporter:
+    image: ghcr.io/ravindrajob/matter-echo-delta-exporter:latest
+    build: .
+    container_name: matter-echo-delta-exporter
+    init: true
+    restart: unless-stopped
+    network_mode: host
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_RAW
+    mem_limit: 32m
+    cpus: 0.25
+    pids_limit: 32
+    volumes:
+      - ./config.yaml:/config/config.yaml:ro
+    command: ["--config", "/config/config.yaml"]
+
+  # Unprivileged zero-hardware demo profile: `docker compose --profile demo up`
+  matter-echo-delta-demo:
+    profiles: ["demo"]
+    image: ghcr.io/ravindrajob/matter-echo-delta-exporter:latest
+    build: .
+    container_name: matter-echo-delta-demo
+    user: "1000:1000"
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    mem_limit: 32m
+    cpus: 0.25
+    pids_limit: 32
+    ports:
+      - "127.0.0.1:9124:9124"
+    command: ["--demo", "--bind", "0.0.0.0:9124"]

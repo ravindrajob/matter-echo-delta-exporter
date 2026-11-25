@@ -1,0 +1,21 @@
+[package]
+name = "matter-echo-delta-exporter"
+version = "0.2.0"
+edition = "2021"
+authors = ["Ravindra JOB <https://blog.ravindra-job.fr>"]
+license = "MIT"
+description = "Passive pure-Rust Linux kernel BPF exporter monitoring encrypted Matter UDP/5540 (MRP) and mDNS UDP/5353 exchanges without decryption, exposing TX - RX Delta and RTT histograms to Prometheus."
+homepage = "https://blog.ravindra-job.fr/iot/supervision-matter-l4-l7-bpf-prometheus-grafana/"
+repository = "https://github.com/ravindrajob/matter-echo-delta-exporter"
+keywords = ["matter", "prometheus", "bpf", "home-assistant", "iot"]
+categories = ["network-programming", "command-line-utilities"]
+
+[dependencies]
+# Pure Rust std-only (0 external crates -> static binary < 1 MB, zero supply-chain bloat).
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+strip = true
+panic = "abort"

@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>matter-echo-delta-exporter</title>
+  <style>
+    :root {
+      --bg: #0b1120;
+      --surface: #111827;
+      --surface-2: #1e293b;
+      --border: #263449;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --accent: #14b8a6;
+      --ok: #22c55e;
+      --warn: #f59e0b;
+      --err: #ef4444;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text); font-family: var(--sans); padding: 20px 24px; line-height: 1.45; }
+    .wrap { max-width: 1200px; margin: 0 auto; }
+    header {
+      display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;
+      padding-bottom: 16px; border-bottom: 1px solid var(--border); margin-bottom: 18px;
+    }
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .logo {
+      width: 38px; height: 38px; border-radius: 10px;
+      background: linear-gradient(135deg, #0d9488, #0284c7);
+      display: flex; align-items: center; justify-content: center;
+      font-family: var(--mono); font-weight: 800; font-size: 16px; color: #fff;
+    }
+    h1 { font-size: 18px; font-weight: 700; letter-spacing: -0.01em; }
+    .sub { font-size: 12px; color: var(--muted); font-family: var(--mono); }
+    .pills { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .pill {
+      font-family: var(--mono); font-size: 11px; padding: 4px 10px; border-radius: 999px;
+      border: 1px solid var(--border); background: var(--surface); color: var(--text);
+    }
+    .pill.ok { border-color: rgba(34,197,94,.4); color: #86efac; background: rgba(34,197,94,.1); }
+    .pill.warn { border-color: rgba(245,158,11,.45); color: #fcd34d; background: rgba(245,158,11,.1); }
+    .pill.err { border-color: rgba(239,68,68,.5); color: #fca5a5; background: rgba(239,68,68,.12); }
+    .pill a { color: inherit; text-decoration: none; }
+    .kpis { display: grid; grid-template-columns: repeat(5, minmax(150px, 1fr)); gap: 12px; margin-bottom: 18px; }
+    .kpi {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px;
+    }
+    .kpi-lbl { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+    .kpi-val { font-size: 26px; font-weight: 700; font-family: var(--mono); margin-top: 4px; }
+    .kpi-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+    .kpi.delta-err { border-color: rgba(239,68,68,.55); background: rgba(239,68,68,.07); }
+    .kpi.delta-err .kpi-val { color: #f87171; }
+    .kpi.ok .kpi-val { color: #4ade80; }
+    .grid { display: grid; grid-template-columns: 1.65fr 1fr; gap: 14px; margin-bottom: 14px; }
+    .card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden;
+    }
+    .card-h {
+      padding: 11px 16px; border-bottom: 1px solid var(--border);
+      display: flex; justify-content: space-between; align-items: center;
+      font-size: 12px; font-weight: 600; color: #cbd5e1; text-transform: uppercase; letter-spacing: .04em;
+    }
+    table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+    th, td { padding: 9px 12px; text-align: left; border-bottom: 1px solid rgba(38,52,73,.6); }
+    th { font-size: 11px; color: var(--muted); font-weight: 600; text-transform: uppercase; background: rgba(30,41,59,.45); }
+    td.num, th.num { text-align: right; font-family: var(--mono); }
+    td.mono { font-family: var(--mono); font-size: 12px; }
+    .tag {
+      display: inline-block; padding: 2px 8px; border-radius: 999px; font-family: var(--mono); font-size: 11px; font-weight: 600;
+    }
+    .tag-ok { background: rgba(34,197,94,.14); color: #86efac; }
+    .tag-err { background: rgba(239,68,68,.18); color: #fca5a5; }
+    .tag-ack { background: rgba(20,184,166,.16); color: #5eead4; }
+    .hist { padding: 14px 16px; }
+    .bar-row { display: grid; grid-template-columns: 64px 1fr 34px; align-items: center; gap: 8px; margin-bottom: 7px; font-family: var(--mono); font-size: 11.5px; }
+    .bar-track { height: 12px; background: var(--surface-2); border-radius: 4px; overflow: hidden; }
+    .bar-fill { height: 100%; background: linear-gradient(90deg, #14b8a6, #38bdf8); border-radius: 4px; }
+    .ev-list { max-height: 220px; overflow: auto; }
+    @media (max-width: 920px) {
+      .kpis { grid-template-columns: repeat(2, 1fr); }
+      .grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="brand">
+        <div class="logo">&Delta;M</div>
+        <div>
+          <h1>matter-echo-delta-exporter</h1>
+          <div class="sub" id="metaLine">Passive L4 Kernel BPF · UDP/5540 Matter MRP &amp; UDP/5353 mDNS · Zero Decryption</div>
+        </div>
+      </div>
+      <div class="pills">
+        <span class="pill ok" id="modePill">MODE</span>
+        <span class="pill ok" id="bridgePill">BRIDGE HTTP</span>
+        <span class="pill" id="bpfPill">BPF FILTER</span>
+        <span class="pill"><a href="/metrics">/metrics</a></span>
+        <span class="pill"><a href="/api/status">/api/status</a></span>
+      </div>
+    </header>
+
+    <section class="kpis">
+      <div class="kpi ok">
+        <div class="kpi-lbl">Answered Bursts</div>
+        <div class="kpi-val" id="kAnswered">-</div>
+        <div class="kpi-sub">UDP/5540 ACK &le; SLA</div>
+      </div>
+      <div class="kpi" id="kDeltaCard">
+        <div class="kpi-lbl">Delta (Unanswered)</div>
+        <div class="kpi-val" id="kDelta">-</div>
+        <div class="kpi-sub">TX &minus; RX timeouts</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-lbl">MRP Retries</div>
+        <div class="kpi-val" id="kRetries">-</div>
+        <div class="kpi-sub">Intra-burst UDP retries</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-lbl">Standalone ACKs</div>
+        <div class="kpi-val" id="kAck">-</div>
+        <div class="kpi-sub">Filtered (§4.11 zero-FP)</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-lbl">Mean LAN RTT</div>
+        <div class="kpi-val" id="kRtt">-</div>
+        <div class="kpi-sub">Echo TX &rarr; Bridge ACK</div>
+      </div>
+    </section>
+
+    <section class="grid">
+      <div class="card">
+        <div class="card-h">
+          <span>Matter Controllers (UDP/5540 + mDNS/5353)</span>
+          <span id="bridgeIpSpan" style="font-family:var(--mono);color:var(--muted);"></span>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Controller</th>
+              <th>IP</th>
+              <th class="num">TX</th>
+              <th class="num">ACK</th>
+              <th class="num">Retries</th>
+              <th class="num">§4.11 ACK</th>
+              <th class="num">Delta</th>
+              <th class="num">Last RTT</th>
+              <th>State</th>
+            </tr>
+          </thead>
+          <tbody id="ctrlRows"></tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <div class="card-h">
+          <span>Matter UDP/5540 RTT Histogram</span>
+          <span style="font-family:var(--mono);color:var(--muted);">ms buckets</span>
+        </div>
+        <div class="hist" id="histBox"></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-h">
+        <span>Recent L4 Correlation Events</span>
+        <span style="font-family:var(--mono);color:var(--muted);">Live ring buffer (read-only)</span>
+      </div>
+      <div class="ev-list">
+        <table>
+          <thead>
+            <tr>
+              <th>Status</th>
+              <th>Controller</th>
+              <th>Protocol</th>
+              <th class="num">Packets</th>
+              <th class="num">MRP Retries</th>
+              <th class="num">RTT</th>
+            </tr>
+          </thead>
+          <tbody id="evRows"></tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    function esc(s) {
+      return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+    async function refresh() {
+      const res = await fetch('/api/status', { cache: 'no-store' });
+      const d = await res.json();
+      document.getElementById('metaLine').textContent =
+        `v${d.version} · iface=${d.interface} · bridge=${d.bridge_ip} · SLA=${d.ack_timeout_ms}ms · uptime=${d.uptime_secs}s`;
+      const modeP = document.getElementById('modePill');
+      modeP.textContent = d.mode === 'demo' ? 'DEMO SANDBOX' : 'LIVE KERNEL BPF';
+      modeP.className = 'pill ' + (d.mode === 'demo' ? 'warn' : 'ok');
+
+      const brP = document.getElementById('bridgePill');
+      brP.textContent = d.bridge_http_up ? 'BRIDGE HTTP UP' : 'BRIDGE HTTP DOWN';
+      brP.className = 'pill ' + (d.bridge_http_up ? 'ok' : 'err');
+
+      const bpfP = document.getElementById('bpfPill');
+      bpfP.textContent = d.mode === 'demo'
+        ? '0 CRATES · 0 CDN'
+        : (d.bpf_attached ? (d.caps_dropped ? 'BPF ON · CAPS=0' : 'BPF ON') : 'USERSPACE FALLBACK');
+      bpfP.className = 'pill ok';
+
+      document.getElementById('bridgeIpSpan').textContent = `Bridge ${d.bridge_ip}:5540`;
+      document.getElementById('kAnswered').textContent = d.summary.answered_bursts;
+      document.getElementById('kDelta').textContent = d.summary.unanswered_delta;
+      document.getElementById('kDeltaCard').className = 'kpi ' + (d.summary.unanswered_delta > 0 ? 'delta-err' : 'ok');
+      document.getElementById('kRetries').textContent = d.summary.mrp_retries;
+      document.getElementById('kAck').textContent = d.summary.standalone_acks;
+      document.getElementById('kRtt').textContent = `${d.summary.avg_rtt_ms.toFixed(1)} ms`;
+
+      document.getElementById('ctrlRows').innerHTML = d.controllers.map(c => {
+        const badge = c.delta > 0
+          ? `<span class="tag tag-err">DELTA +${c.delta}</span>`
+          : `<span class="tag tag-ok">OK</span>`;
+        return `<tr>
+          <td><strong>${esc(c.controller)}</strong></td>
+          <td class="mono">${esc(c.ip)}</td>
+          <td class="num">${c.tx_packets}</td>
+          <td class="num">${c.rx_acks}</td>
+          <td class="num">${c.retries}</td>
+          <td class="num">${c.standalone_acks}</td>
+          <td class="num" style="color:${c.delta > 0 ? '#f87171' : '#4ade80'};font-weight:700">${c.delta}</td>
+          <td class="num">${c.last_rtt_ms.toFixed(1)} ms</td>
+          <td>${badge}</td>
+        </tr>`;
+      }).join('');
+
+      const maxB = Math.max(1, ...d.rtt_buckets.map(b => b.count));
+      document.getElementById('histBox').innerHTML = d.rtt_buckets.map(b => {
+        const pct = Math.round((b.count / maxB) * 100);
+        return `<div class="bar-row">
+          <span>&le; ${b.le_ms}ms</span>
+          <div class="bar-track"><div class="bar-fill" style="width:${pct}%"></div></div>
+          <span style="text-align:right">${b.count}</span>
+        </div>`;
+      }).join('');
+
+      document.getElementById('evRows').innerHTML = d.recent_events.map(ev => {
+        const cls = ev.status === 'answered' ? 'tag-ok' : (ev.status === 'standalone_ack' ? 'tag-ack' : 'tag-err');
+        return `<tr>
+          <td><span class="tag ${cls}">${esc(ev.status)}</span></td>
+          <td><strong>${esc(ev.controller)}</strong> <span class="mono" style="color:var(--muted)">(${esc(ev.ip)})</span></td>
+          <td class="mono">${esc(ev.proto)}</td>
+          <td class="num">${ev.packets}</td>
+          <td class="num">${ev.retries}</td>
+          <td class="num">${ev.rtt_ms > 0 ? ev.rtt_ms.toFixed(1) + ' ms' : '-'}</td>
+        </tr>`;
+      }).join('');
+    }
+    refresh();
+    setInterval(refresh, 4000);
+  </script>
+</body>
+</html>

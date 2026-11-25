@@ -1,0 +1,9 @@
+target/
+dist/
+assets/
+tests/
+monitoring/
+.github/
+*.md
+config.yaml
+.env

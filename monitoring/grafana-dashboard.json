@@ -1,0 +1,122 @@
+{
+  "uid": "matter-echo-delta-l4",
+  "title": "Matter L4 Delta & RTT (BPF Exporter)",
+  "description": "Ready-to-import Grafana dashboard for matter-echo-delta-exporter (/metrics)",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "15s",
+  "tags": ["matter", "bpf", "prometheus", "home-assistant", "udp"],
+  "templating": {
+    "list": [
+      {
+        "name": "datasource",
+        "type": "datasource",
+        "query": "prometheus",
+        "label": "Prometheus"
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Matter Bridge HTTP Health",
+      "type": "stat",
+      "gridPos": { "h": 5, "w": 6, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [{ "expr": "matter_bridge_http_up", "instant": true, "refId": "A" }],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            { "type": "value", "options": { "0": { "text": "DOWN", "color": "red" }, "1": { "text": "UP", "color": "green" } } }
+          ]
+        }
+      }
+    },
+    {
+      "id": 2,
+      "title": "Unanswered Bursts Delta (1h)",
+      "type": "stat",
+      "gridPos": { "h": 5, "w": 6, "x": 6, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [{ "expr": "sum(increase(matter_echo_delta_unanswered_bursts_total{proto=\"mrp_5540\"}[1h]))", "instant": true, "refId": "A" }],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 1 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 3,
+      "title": "Standalone ACKs Filtered (§4.11, 1h)",
+      "type": "stat",
+      "gridPos": { "h": 5, "w": 6, "x": 12, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [{ "expr": "sum(increase(matter_echo_standalone_acks_total[1h]))", "instant": true, "refId": "A" }]
+    },
+    {
+      "id": 4,
+      "title": "Silent Disconnect Flag",
+      "type": "stat",
+      "gridPos": { "h": 5, "w": 6, "x": 18, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [{ "expr": "matter_silent_disconnect", "instant": true, "refId": "A" }],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            { "type": "value", "options": { "0": { "text": "HEALTHY", "color": "green" }, "1": { "text": "SILENT DROP", "color": "red" } } }
+          ]
+        }
+      }
+    },
+    {
+      "id": 5,
+      "title": "Matter UDP/5540 ACK Latency RTT (ms)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 5 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [
+        { "expr": "matter_echo_last_rtt_ms{proto=\"mrp_5540\"}", "legendFormat": "{{controller}}", "refId": "A" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "ms" } }
+    },
+    {
+      "id": 6,
+      "title": "p95 Matter ACK RTT (ms)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 5 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [
+        { "expr": "histogram_quantile(0.95, sum by (le, controller) (rate(matter_echo_ack_rtt_ms_bucket{proto=\"mrp_5540\"}[10m])))", "legendFormat": "p95 {{controller}}", "refId": "A" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "ms" } }
+    },
+    {
+      "id": 7,
+      "title": "Answered vs Unanswered Bursts per Controller (1h)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 13 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [
+        { "expr": "increase(matter_echo_answered_bursts_total{proto=\"mrp_5540\"}[1h])", "legendFormat": "OK {{controller}}", "refId": "A" },
+        { "expr": "increase(matter_echo_delta_unanswered_bursts_total{proto=\"mrp_5540\"}[1h])", "legendFormat": "DELTA {{controller}}", "refId": "B" }
+      ]
+    },
+    {
+      "id": 8,
+      "title": "MRP Retransmissions & Active Failure Streak",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 13 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [
+        { "expr": "increase(matter_mrp_retries_total{proto=\"mrp_5540\"}[15m])", "legendFormat": "Retries {{controller}}", "refId": "A" },
+        { "expr": "matter_echo_consecutive_failure_streak{proto=\"mrp_5540\"}", "legendFormat": "Streak {{controller}}", "refId": "B" }
+      ]
+    }
+  ]
+}

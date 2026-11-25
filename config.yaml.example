@@ -1,0 +1,32 @@
+# ==============================================================================
+# matter-echo-delta-exporter — config.yaml
+# Copy to ./config.yaml and pass via `--config config.yaml` (or mount /config/config.yaml).
+# Precedence: safe defaults < config.yaml < environment variables < CLI flags.
+# Supports ${ENV_VAR} expansion so optional secrets stay in .env (never in YAML).
+# ==============================================================================
+
+capture:
+  interface: "eth0"                 # Host network interface carrying Matter LAN traffic
+  matter_port: 5540                 # Matter operational UDP port (CASE / MRP)
+  mdns_port: 5353                   # Multicast DNS UDP port (_matter._tcp / _matterc._udp)
+  drop_privileges_after_bpf: true   # Drop CAP_NET_RAW immediately after SO_ATTACH_FILTER
+
+bridge:
+  ip: "198.51.100.20"               # Matter Bridge / Home Assistant Matter Hub IP
+  # Optional local HTTP health endpoint (distinguishes healthy MRP Standalone ACKs from dead bridge)
+  health_url: "http://127.0.0.1:8482/"
+  ack_timeout_ms: 1800              # Window before an unanswered MRP burst increments Delta
+  standalone_ack_filter: true       # Matter Core Spec §4.11: ignore 1-pkt, 0-retry ACKs while bridge UP
+
+server:
+  bind: "127.0.0.1:9124"            # Use "0.0.0.0:9124" inside bridge network; keep loopback with host net
+  enable_ui: true                   # Built-in read-only status dashboard on GET / (0 CDN)
+
+# Known Matter controllers (Alexa Echo, Apple HomePod, Google Nest) -> Prometheus controller label.
+# Any extra peer matching auto_discover_prefix is also tracked automatically (leave empty to disable).
+auto_discover_prefix: "192.0.2."
+controllers:
+  "192.0.2.10": "echo-living"
+  "192.0.2.11": "echo-kitchen"
+  "192.0.2.12": "echo-bedroom"
+  "192.0.2.13": "homepod-office"
